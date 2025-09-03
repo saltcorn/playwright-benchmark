@@ -1,6 +1,6 @@
 {
   "name": "@saltcorn/playwright-benchmark",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Benchmarks and load testing with playwright",
   "main": "index.js",
   "scripts": {

@@ -41,7 +41,7 @@ class PlaywrightSession {
       await this.startSession(this);
     }
     this.page.on("console", (message) => {
-      if (message.type() === "error") this.latest_error = null;
+      if (message.type() === "error") this.latest_error = message;
     });
   }
   async close_browser() {
@@ -85,12 +85,12 @@ class PlaywrightBenchmark {
       performance.getEntriesByType("navigation")
     );
     //if (index === 0) console.log(navigationTimingJson);
-    const latest_error = session.latest_error;
-    session.latest_error = null;
     const correct =
-      !latest_error &&
       response.status() === 200 &&
-      (contains ? (await session.page.content()).includes(contains) : true);
+      (contains ? (await session.page.content()).includes(contains) : true) &&
+      !session.latest_error;
+
+    session.latest_error = null;
 
     this.data[url].push({
       responseEnd: navigationTimingJson[0].responseEnd,
