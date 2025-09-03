@@ -1,0 +1,22 @@
+{
+  "name": "@saltcorn/playwright-benchmark",
+  "version": "0.1.0",
+  "description": "Benchmarks and load testing with playwright",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saltcorn/playwright-benchmark.git"
+  },
+  "author": "Tom Nielsen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/saltcorn/playwright-benchmark/issues"
+  },
+  "homepage": "https://github.com/saltcorn/playwright-benchmark#readme",
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}
