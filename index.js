@@ -49,6 +49,7 @@ class PlaywrightBenchmark {
   constructor(opts) {
     this.startSession = opts.startSession;
     this.pages = opts.pages;
+    this.baseUrl = opts.baseUrl || "";
     this.data = {};
   }
 
@@ -59,7 +60,7 @@ class PlaywrightBenchmark {
   async page_run(session, { url }) {
     if (!this.data[url]) this.data[url] = [];
 
-    await session.page.goto(url);
+    await session.page.goto(this.baseUrl+url);
     const largestContentfulPaint = await session.page.evaluate(() => {
       return new Promise((resolve) => {
         new PerformanceObserver((l) => {
