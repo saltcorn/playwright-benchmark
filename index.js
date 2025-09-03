@@ -35,7 +35,14 @@ class PlaywrightBenchmark {
           });
         });
       });
-      this.data[url].push({ lcp: parseFloat(largestContentfulPaint) });
+      const navigationTimingJson = await this.page.evaluate(() =>
+        performance.getEntriesByType("navigation")
+      );
+
+      this.data[url].push({
+        lcp: parseFloat(largestContentfulPaint),
+        domComplete: navigationTimingJson[0].domComplete,
+      });
     }
   }
   async close_browser() {
