@@ -16,7 +16,7 @@ const getMean = (array) => {
   return total / array.length;
 };
 
-const round = x=> Math.round(x*10)/10
+const round = (x) => Math.round(x * 10) / 10;
 
 class PlaywrightBenchmark {
   constructor(opts) {
@@ -57,10 +57,10 @@ class PlaywrightBenchmark {
         const navigationTimingJson = await this.page.evaluate(() =>
           performance.getEntriesByType("navigation")
         );
-        //if(index===0) console.log(navigationTimingJson);
-        
+        //if (index === 0) console.log(navigationTimingJson);
 
         this.data[url].push({
+          responseEnd: navigationTimingJson[0].responseEnd,
           LCP: parseFloat(largestContentfulPaint),
           domComplete: navigationTimingJson[0].domComplete,
         });
@@ -76,7 +76,7 @@ class PlaywrightBenchmark {
     this.stats = [];
     Object.entries(this.data).forEach(([url, valObjs]) => {
       const point = { url };
-      ["LCP", "domComplete"].forEach((k) => {
+      ["responseEnd", "LCP", "domComplete"].forEach((k) => {
         const vals = valObjs.map((o) => o[k]);
 
         point[`${k} mean`] = round(getMean(vals));
@@ -87,7 +87,7 @@ class PlaywrightBenchmark {
     return this.stats;
   }
 
-  async run(times=3) {
+  async run(times = 3) {
     await this.init_browser();
     await this.start_session();
     await this.main_run(times);
