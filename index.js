@@ -8,8 +8,8 @@ class PlaywrightBenchmark {
 
   async init_browser() {
     this.browser = await chromium.launch({ headless: true });
-    this.context = await browser.newContext();
-    this.page = await context.newPage();
+    this.context = await this.browser.newContext();
+    this.page = await this.context.newPage();
   }
   async start_session() {
     if (this.startSession) {
@@ -22,7 +22,7 @@ class PlaywrightBenchmark {
       if (!this.data[url]) this.data[url] = [];
 
       await this.page.goto(url);
-      const largestContentfulPaint = await page.evaluate(() => {
+      const largestContentfulPaint = await this.page.evaluate(() => {
         return new Promise((resolve) => {
           new PerformanceObserver((l) => {
             const entries = l.getEntries();
