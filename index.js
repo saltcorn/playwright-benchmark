@@ -18,57 +18,88 @@ const getMean = (array) => {
 
 const round = (x) => Math.round(x * 10) / 10;
 
-class PlaywrightBenchmark {
+const one_to_n = (n) => {
+  const ns = [];
+
+  for (var i = 1; i <= n; i++) {
+    ns.push(i);
+  }
+  return ns;
+};
+
+class PlaywrightSession {
   constructor(opts) {
     this.startSession = opts.startSession;
-    this.pages = opts.pages;
+    this.browser = opts.browser;
   }
 
-  async init_browser() {
-    this.browser = await chromium.launch({ headless: true });
+  async start_session() {
     this.context = await this.browser.newContext();
     this.page = await this.context.newPage();
-  }
-  async start_session() {
     if (this.startSession) {
       await this.startSession(this);
     }
   }
-  async main_run(times) {
-    if (!this.data) this.data = {};
-    for (let index = 0; index < times; index++) {
-      for (const { url } of this.pages) {
-        if (!this.data[url]) this.data[url] = [];
-
-        await this.page.goto(url);
-        const largestContentfulPaint = await this.page.evaluate(() => {
-          return new Promise((resolve) => {
-            new PerformanceObserver((l) => {
-              const entries = l.getEntries();
-              // the last entry is the largest contentful paint
-              const largestPaintEntry = entries.at(-1);
-              resolve(largestPaintEntry.startTime);
-            }).observe({
-              type: "largest-contentful-paint",
-              buffered: true,
-            });
-          });
-        });
-        const navigationTimingJson = await this.page.evaluate(() =>
-          performance.getEntriesByType("navigation")
-        );
-        //if (index === 0) console.log(navigationTimingJson);
-
-        this.data[url].push({
-          responseEnd: navigationTimingJson[0].responseEnd,
-          LCP: parseFloat(largestContentfulPaint),
-          domComplete: navigationTimingJson[0].domComplete,
-        });
-      }
-    }
-  }
   async close_browser() {
     await this.context.close();
+  }
+}
+
+class PlaywrightBenchmark {
+  constructor(opts) {
+    this.startSession = opts.startSession;
+    this.pages = opts.pages;
+    this.data = {};
+  }
+
+  async init_browser() {
+    this.browser = await chromium.launch({ headless: true });
+  }
+
+  async page_run(session, { url }) {
+    if (!this.data[url]) this.data[url] = [];
+
+    await session.page.goto(url);
+    const largestContentfulPaint = await session.page.evaluate(() => {
+      return new Promise((resolve) => {
+        new PerformanceObserver((l) => {
+          const entries = l.getEntries();
+          // the last entry is the largest contentful paint
+          const largestPaintEntry = entries.at(-1);
+          resolve(largestPaintEntry.startTime);
+        }).observe({
+          type: "largest-contentful-paint",
+          buffered: true,
+        });
+      });
+    });
+    const navigationTimingJson = await session.page.evaluate(() =>
+      performance.getEntriesByType("navigation")
+    );
+    //if (index === 0) console.log(navigationTimingJson);
+
+    this.data[url].push({
+      responseEnd: navigationTimingJson[0].responseEnd,
+      LCP: parseFloat(largestContentfulPaint),
+      domComplete: navigationTimingJson[0].domComplete,
+    });
+  }
+  async main_run({ ntimes, concurrency = 1 }) {
+    await Promise.all(
+      one_to_n(concurrency).map(async (threadIx) => {
+        const session = new PlaywrightSession({
+          startSession: this.startSession,
+          browser: this.browser,
+        });
+        await session.start_session();
+        for (let t = 0; t < ntimes; t++)
+          for (const pg of this.pages) await this.page_run(session, pg);
+
+        await session.close_browser();
+      })
+    );
+  }
+  async close_browser() {
     await this.browser.close();
   }
 
@@ -87,10 +118,9 @@ class PlaywrightBenchmark {
     return this.stats;
   }
 
-  async run(times = 3) {
+  async run({ ntimes = 3, concurrency = 1 }) {
     await this.init_browser();
-    await this.start_session();
-    await this.main_run(times);
+    await this.main_run({ ntimes, concurrency });
     await this.close_browser();
   }
 }

@@ -14,6 +14,6 @@ const pb = new PlaywrightBenchmark({
 });
 
 (async () => {
-  await pb.run(20);
+  await pb.run({ntimes: 20, concurrency: 4});
   console.table(pb.calc_stats());
 })();
