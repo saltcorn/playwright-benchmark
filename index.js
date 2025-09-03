@@ -57,10 +57,13 @@ class PlaywrightBenchmark {
     this.browser = await chromium.launch({ headless: true });
   }
 
-  async page_run(session, { url, contains }) {
+  async page_run(session, { url, contains, timeout }) {
     if (!this.data[url]) this.data[url] = [];
 
-    const response = await session.page.goto(this.baseUrl + url);
+    const response = await session.page.goto(
+      this.baseUrl + url,
+      timeout ? { timeout } : undefined
+    );
     const largestContentfulPaint = await session.page.evaluate(() => {
       return new Promise((resolve) => {
         new PerformanceObserver((l) => {

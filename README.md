@@ -1,6 +1,12 @@
-const PlaywrightBenchmark = require("./index");
-//  or, when not inside this repository:
-// const PlaywrightBenchmark = require("@saltcorn/playwright-benchmark");
+playwright-benchmark
+====================
+
+Benchmark or load test a web application using a real browser environment. 
+
+### Example
+
+```javascript
+const PlaywrightBenchmark = require("@saltcorn/playwright-benchmark");
 
 const pb = new PlaywrightBenchmark({
   // (optional) baseUrl will be added to all urls in pages
@@ -38,3 +44,5 @@ const pb = new PlaywrightBenchmark({
   //print the results
   console.table(pb.calc_stats());
 })();
+
+```
