@@ -8,10 +8,13 @@ const pb = new PlaywrightBenchmark({
     await page.fill('input[type="password"]', "AhGGr6rhu45");
     await page.click('button:has-text("Login")');
   },
-  pages: [{ url: "/view/authorlist" }, { url: "/view/BookTabulator" }],
+  pages: [
+    { url: "/view/authorlist", contains: "Leo Tolstoy" },
+    { url: "/view/BookTabulator", contains: "Leo Tolstoy" },
+  ],
 });
 
 (async () => {
-  await pb.run({ ntimes: 10, concurrency: 2 });
+  await pb.run({ ntimes: 5, concurrency: 1 });
   console.table(pb.calc_stats());
 })();

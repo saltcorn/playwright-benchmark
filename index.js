@@ -57,10 +57,10 @@ class PlaywrightBenchmark {
     this.browser = await chromium.launch({ headless: true });
   }
 
-  async page_run(session, { url }) {
+  async page_run(session, { url, contains }) {
     if (!this.data[url]) this.data[url] = [];
 
-    await session.page.goto(this.baseUrl+url);
+    const response = await session.page.goto(this.baseUrl + url);
     const largestContentfulPaint = await session.page.evaluate(() => {
       return new Promise((resolve) => {
         new PerformanceObserver((l) => {
@@ -79,10 +79,15 @@ class PlaywrightBenchmark {
     );
     //if (index === 0) console.log(navigationTimingJson);
 
+    const correct =
+      response.status() === 200 &&
+      (contains ? (await session.page.content()).includes(contains) : true);
+
     this.data[url].push({
       responseEnd: navigationTimingJson[0].responseEnd,
       LCP: parseFloat(largestContentfulPaint),
       domComplete: navigationTimingJson[0].domComplete,
+      correct: correct ? 100 : 0,
     });
   }
   async main_run({ ntimes, concurrency = 1 }) {
@@ -114,6 +119,7 @@ class PlaywrightBenchmark {
         point[`${k} mean`] = round(getMean(vals));
         point[`${k} sd`] = round(getStandardDeviation(vals));
       });
+      point.correct = Math.round(getMean(valObjs.map((o) => o.correct)));
       this.stats.push(point);
     });
     return this.stats;
