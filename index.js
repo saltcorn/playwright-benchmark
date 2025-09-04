@@ -27,6 +27,17 @@ const one_to_n = (n) => {
   return ns;
 };
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shuffle(unshuffled) {
+  return unshuffled
+    .map((value) => ({ value, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ value }) => value);
+}
+
 class PlaywrightSession {
   constructor(opts) {
     this.startSession = opts.startSession;
@@ -63,56 +74,72 @@ class PlaywrightBenchmark {
 
   async page_run(session, { url, contains, timeout }) {
     if (!this.data[url]) this.data[url] = [];
-
-    const response = await session.page.goto(
-      this.baseUrl + url,
-      timeout ? { timeout } : undefined
-    );
-    const largestContentfulPaint = await session.page.evaluate(() => {
-      return new Promise((resolve) => {
-        new PerformanceObserver((l) => {
-          const entries = l.getEntries();
-          // the last entry is the largest contentful paint
-          const largestPaintEntry = entries.at(-1);
-          resolve(largestPaintEntry.startTime);
-        }).observe({
-          type: "largest-contentful-paint",
-          buffered: true,
+    try {
+      const response = await session.page.goto(
+        this.baseUrl + url,
+        timeout ? { timeout } : undefined
+      );
+      const largestContentfulPaint = await session.page.evaluate(() => {
+        return new Promise((resolve) => {
+          new PerformanceObserver((l) => {
+            const entries = l.getEntries();
+            // the last entry is the largest contentful paint
+            const largestPaintEntry = entries.at(-1);
+            resolve(largestPaintEntry.startTime);
+          }).observe({
+            type: "largest-contentful-paint",
+            buffered: true,
+          });
         });
       });
-    });
-    const navigationTimingJson = await session.page.evaluate(() =>
-      performance.getEntriesByType("navigation")
-    );
-    //if (index === 0) console.log(navigationTimingJson);
-    const correct =
-      response.status() === 200 &&
-      (contains ? (await session.page.content()).includes(contains) : true) &&
-      !session.latest_error;
+      const navigationTimingJson = await session.page.evaluate(() =>
+        performance.getEntriesByType("navigation")
+      );
+      //if (index === 0) console.log(navigationTimingJson);
+      const correctStatus = response.status() === 200;
+      const correctContents = contains
+        ? (await session.page.content()).includes(contains)
+        : true;
+      const correctLoad = !session.latest_error;
+      const correct = correctStatus && correctContents && correctLoad;
+      if(!correctStatus) process.stdout.write("S");
+      else if(!correctContents) process.stdout.write("C");
+      else if(!correctLoad) process.stdout.write("L");
+      else process.stdout.write(".");
 
-    session.latest_error = null;
 
-    this.data[url].push({
-      responseEnd: navigationTimingJson[0].responseEnd,
-      LCP: parseFloat(largestContentfulPaint),
-      domComplete: navigationTimingJson[0].domComplete,
-      correct: correct ? 100 : 0,
-    });
+      session.latest_error = null;
+
+      this.data[url].push({
+        responseEnd: navigationTimingJson[0].responseEnd,
+        LCP: parseFloat(largestContentfulPaint),
+        domComplete: navigationTimingJson[0].domComplete,
+        correct: correct ? 100 : 0,
+      });
+    } catch {
+      this.data[url].push({
+        correct: 0,
+      });
+    }
   }
   async main_run({ ntimes, concurrency = 1 }) {
     await Promise.all(
       one_to_n(concurrency).map(async (threadIx) => {
+        await sleep(Math.round(Math.random() * 2500));
         const session = new PlaywrightSession({
           startSession: this.startSession,
           browser: this.browser,
         });
         await session.start_session();
         for (let t = 0; t < ntimes; t++)
-          for (const pg of this.pages) await this.page_run(session, pg);
+          for (const pg of shuffle(this.pages))
+            await this.page_run(session, pg);
 
         await session.close_browser();
       })
     );
+    process.stdout.write("\n");
+
   }
   async close_browser() {
     await this.browser.close();
@@ -123,7 +150,7 @@ class PlaywrightBenchmark {
     Object.entries(this.data).forEach(([url, valObjs]) => {
       const point = { url };
       ["responseEnd", "LCP", "domComplete"].forEach((k) => {
-        const vals = valObjs.map((o) => o[k]);
+        const vals = valObjs.map((o) => o[k]).filter(is_num);
 
         point[`${k} mean`] = round(getMean(vals));
         point[`${k} sd`] = round(getStandardDeviation(vals));
@@ -139,6 +166,10 @@ class PlaywrightBenchmark {
     await this.main_run({ ntimes, concurrency });
     await this.close_browser();
   }
+}
+
+function is_num(x) {
+  return typeof x === "number";
 }
 
 module.exports = PlaywrightBenchmark;
