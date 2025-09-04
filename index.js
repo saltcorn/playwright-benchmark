@@ -100,11 +100,11 @@ class PlaywrightBenchmark {
       const correctContents = contains
         ? (await session.page.content()).includes(contains)
         : true;
-      const correctLoad = !session.latest_error;
-      const correct = correctStatus && correctContents && correctLoad;
+      const noErrors = !session.latest_error;
+      const correct = correctStatus && correctContents && noErrors;
       if(!correctStatus) process.stdout.write("S");
       else if(!correctContents) process.stdout.write("C");
-      else if(!correctLoad) process.stdout.write("L");
+      else if(!noErrors) process.stdout.write("E");
       else process.stdout.write(".");
 
 
@@ -117,6 +117,7 @@ class PlaywrightBenchmark {
         correct: correct ? 100 : 0,
       });
     } catch {
+      process.stdout.write("L");
       this.data[url].push({
         correct: 0,
       });
