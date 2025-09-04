@@ -66,6 +66,7 @@ class PlaywrightBenchmark {
     this.pages = opts.pages;
     this.baseUrl = opts.baseUrl || "";
     this.data = {};
+    this.url_errors = {};
   }
 
   async init_browser() {
@@ -102,11 +103,18 @@ class PlaywrightBenchmark {
         : true;
       const noErrors = !session.latest_error;
       const correct = correctStatus && correctContents && noErrors;
-      if(!correctStatus) process.stdout.write("S");
-      else if(!correctContents) process.stdout.write("C");
-      else if(!noErrors) process.stdout.write("E");
+      if (!correctStatus) process.stdout.write("S");
+      else if (!correctContents) process.stdout.write("C");
+      else if (!noErrors) process.stdout.write("E");
       else process.stdout.write(".");
 
+      if (session.latest_error) {
+        if (!this.url_errors[url]) this.url_errors[url] = new Set();
+        const lines = session.latest_error.text().split("\n");
+        const msg = lines[0].trim() + " " + (lines[1] || "").trim();
+
+        this.url_errors[url].add(msg);
+      }
 
       session.latest_error = null;
 
@@ -116,8 +124,10 @@ class PlaywrightBenchmark {
         domComplete: navigationTimingJson[0].domComplete,
         correct: correct ? 100 : 0,
       });
-    } catch {
+    } catch (e) {
       process.stdout.write("L");
+      if (!this.url_errors[url]) this.url_errors[url] = new Set();
+      this.url_errors[url].add(e.message);
       this.data[url].push({
         correct: 0,
       });
@@ -140,7 +150,6 @@ class PlaywrightBenchmark {
       })
     );
     process.stdout.write("\n");
-
   }
   async close_browser() {
     await this.browser.close();
@@ -148,17 +157,20 @@ class PlaywrightBenchmark {
 
   calc_stats() {
     this.stats = [];
-    Object.entries(this.data).forEach(([url, valObjs]) => {
-      const point = { url };
-      ["responseEnd", "LCP", "domComplete"].forEach((k) => {
-        const vals = valObjs.map((o) => o[k]).filter(is_num);
+    Object.keys(this.data)
+      .sort()
+      .forEach((url) => {
+        const valObjs = this.data[url];
+        const point = { url };
+        ["responseEnd", "LCP", "domComplete"].forEach((k) => {
+          const vals = valObjs.map((o) => o[k]).filter(is_num);
 
-        point[`${k} mean`] = round(getMean(vals));
-        point[`${k} sd`] = round(getStandardDeviation(vals));
+          point[`${k} mean`] = round(getMean(vals));
+          point[`${k} sd`] = round(getStandardDeviation(vals));
+        });
+        point.correct = Math.round(getMean(valObjs.map((o) => o.correct)));
+        this.stats.push(point);
       });
-      point.correct = Math.round(getMean(valObjs.map((o) => o.correct)));
-      this.stats.push(point);
-    });
     return this.stats;
   }
 

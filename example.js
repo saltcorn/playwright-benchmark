@@ -37,4 +37,7 @@ const pb = new PlaywrightBenchmark({
   });
   //print the results
   console.table(pb.calc_stats());
+  //print the on-page errors
+  console.log(pb.url_errors);
+
 })();
